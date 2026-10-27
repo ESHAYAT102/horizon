@@ -118,6 +118,7 @@ pub mod minimap;
 pub mod mipmap;
 pub mod mobs;
 pub mod mod_content;
+pub mod mod_emissive;
 pub mod mod_list;
 mod model_library;
 pub mod models;
