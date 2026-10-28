@@ -5,7 +5,11 @@
 //! (`entity-models.json`); transforms, animation and textures follow each
 //! vanilla renderer. Faces are lit like the `entity` shader: the lightmap at
 //! the block plus `minecraft_mix_light` with the level's two diffuse lights.
-use crate::{hud::Rect, mesher::Vertex, world::World};
+use crate::{
+    hud::Rect,
+    mesher::{CULL_BACK, Vertex},
+    world::World,
+};
 use glam::{DVec3, Mat4, Quat, Vec3};
 use horizon_core::geometry::{
     Direction,
@@ -92,6 +96,16 @@ pub fn diffuse(normal: Vec3, lights: (Vec3, Vec3)) -> f32 {
 /// Packed vertex light from the level's packed `sky << 4 | block` byte.
 pub fn vertex_light(packed: u8) -> u32 {
     (u32::from(packed >> 4) * 16) | ((u32::from(packed & 15) * 16) << 8)
+}
+/// `ChestRenderer.xmasTextures`: `SpecialDates.isExtendedChristmas` (24 to 26
+/// December in the local time zone), read once when the renderer is created.
+fn extended_christmas() -> bool {
+    use chrono::Datelike;
+    static XMAS: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *XMAS.get_or_init(|| {
+        let now = chrono::Local::now();
+        now.month() == 12 && (24..=26).contains(&now.day())
+    })
 }
 fn pack_color(rgb: u32, alpha: u32, brightness: f32) -> u32 {
     let c = |shift: u32| (((rgb >> shift) & 255) as f32 * brightness) as u32;
@@ -1169,11 +1183,25 @@ impl BlockEntityRenderer {
                 }
             }
             Kind::Chest {
+                block,
                 texture,
                 part,
                 y_rot,
                 ..
             } => {
+                // ChestRenderer.getChestMaterial: normal and trapped chests use the christmas
+                // sprites on 24-26 December. Copper and ender chests keep theirs.
+                let texture = if matches!(block.as_str(), "chest" | "trapped_chest")
+                    && extended_christmas()
+                {
+                    match part {
+                        ChestPart::Single => "entity/chest/christmas",
+                        ChestPart::Left => "entity/chest/christmas_left",
+                        ChestPart::Right => "entity/chest/christmas_right",
+                    }
+                } else {
+                    *texture
+                };
                 let model = match part {
                     ChestPart::Single => "chest",
                     ChestPart::Left => "double_chest_left",
@@ -1416,6 +1444,7 @@ impl BlockEntityRenderer {
                         m *= around(Mat4::from_rotation_y(turn * decay), pivot);
                     }
                 }
+                let first = out.len();
                 if let Some(paint) =
                     paint("entity/decorated_pot/decorated_pot_base", 0xFFFFFF, packed)
                 {
@@ -1432,6 +1461,11 @@ impl BlockEntityRenderer {
                     {
                         draw_part(part, side, m, &none, paint, out);
                     }
+                }
+                // `DecoratedPotRenderer` submits every part with `entitySolid`, which culls
+                // back faces: the flat `top` and `bottom` planes show one side each.
+                for vertex in &mut out[first..] {
+                    vertex.normal = CULL_BACK;
                 }
             }
             Kind::EndPortal => {
@@ -2127,5 +2161,71 @@ mod tests {
         assert_eq!(first_line("abcdef", 13.0, &advance), "ab");
         assert_eq!(first_line("\u{6771}", 3.0, &advance), "\u{6771}");
         assert_eq!(first_line("ab\ncd", 100.0, &advance), "ab");
+    }
+    /// `DecoratedPotRenderer` submits every part with `RenderTypes.entitySolid`,
+    /// whose pipeline culls back faces. The pot's `top` and `bottom` are flat
+    /// boxes, so without that cull both sides of each plane are drawn and they
+    /// z-fight: the pot renders wrong.
+    #[test]
+    fn the_decorated_pot_culls_its_back_faces() {
+        let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../.local/horizon-client")
+            .join(horizon_core::VANILLA_VERSION);
+        if !root.join("entity-models.json").exists() {
+            return;
+        }
+        let assets = crate::assets::Assets::load(&root).unwrap();
+        let registry = assets.registry;
+        let renderer = BlockEntityRenderer::load(&root, registry).unwrap();
+        let state = registry.default_state("minecraft:decorated_pot").unwrap();
+        let sprites: HashMap<String, Rect> = [
+            "entity/decorated_pot/decorated_pot_base",
+            "entity/decorated_pot/decorated_pot_side",
+        ]
+        .into_iter()
+        .map(|name| {
+            (
+                name.to_owned(),
+                Rect {
+                    u0: 0.25,
+                    v0: 0.125,
+                    u1: 0.375,
+                    v1: 0.25,
+                    w: 16,
+                    h: 16,
+                },
+            )
+        })
+        .collect();
+        let world = World::new(BlockStateId(0), 1);
+        let scene = Scene {
+            camera: DVec3::ZERO,
+            orientation: Quat::IDENTITY,
+            anim: &|_| BlockAnim::default(),
+            texts: None,
+            partial: 0.5,
+            game_time: 0,
+            max_y: 320,
+            world: &world,
+            sprites: &sprites,
+            nether: false,
+            lid: &|_| 0.0,
+            sign: &|_| None,
+            banner: &|_| Vec::new(),
+            skull: &|_| None,
+            glyph: &|_| (None, 0.0),
+        };
+        let mut verts = Vec::new();
+        renderer.render_block(&scene, [0; 3], state.0, Mat4::IDENTITY, 0xff, &mut verts);
+        // Vanilla submits 28 quads for a plain pot, and the cull keeps them all.
+        assert_eq!(
+            verts.len() / 4,
+            28,
+            "the pot submits all of vanilla's quads"
+        );
+        assert!(
+            verts.iter().all(|v| v.normal == CULL_BACK),
+            "entitySolid culls the pot's back faces"
+        );
     }
 }

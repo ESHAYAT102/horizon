@@ -1331,6 +1331,7 @@ impl Def {
         let mut v = vec![base];
         let extra: &[&str] = match self.species {
             Species::Pig => &["pig_baby", "cold_pig"],
+            Species::Mannequin => &["player_slim"],
             Species::Cow => &[
                 "cow_baby",
                 "cold_cow",
@@ -1699,10 +1700,15 @@ impl Def {
     }
 }
 /// Mobs whose `body` equipment slot Horizon keeps in `Extra::head` (a
-/// happy ghast's harness, nautilus armour, a sulfur cube's swallowed block).
+/// happy ghast's harness, nautilus armour, a sulfur cube's swallowed block,
+/// a wolf's armor).
 pub fn body_slot(s: Species) -> bool {
     matches!(
         s,
-        Species::HappyGhast | Species::Nautilus | Species::ZombieNautilus | Species::SulfurCube
+        Species::HappyGhast
+            | Species::Nautilus
+            | Species::ZombieNautilus
+            | Species::SulfurCube
+            | Species::Wolf
     )
 }
