@@ -1443,6 +1443,38 @@ fn colored_lights_validate_atomically_and_follow_owner_and_dimension() {
 }
 
 #[test]
+fn block_rims_validate_atomically_and_follow_owner_and_dimension() {
+    fn said(mods: &mut Mods, command: &str) -> Vec<String> {
+        assert!(mods.command(command));
+        mods.drain()
+            .into_iter()
+            .filter_map(|o| match o {
+                Output::Chat { text, .. } => Some(text),
+                _ => None,
+            })
+            .collect()
+    }
+    let mut mods = load("horizon_mods_test_ui_guest.hmod");
+    assert!(said(&mut mods, "block_rims")[0].contains("no world"));
+    mods.set_snapshot(player());
+    assert_eq!(said(&mut mods, "block_rims"), ["Ok(())"]);
+    assert_eq!(mods.block_rims().count(), 1);
+    for bad in ["far", "nan", "wide", "many"] {
+        assert!(said(&mut mods, &format!("block_rims {bad}"))[0].starts_with("Err"));
+        assert_eq!(mods.block_rims().count(), 1);
+    }
+    assert_eq!(said(&mut mods, "block_rims clear"), ["Ok(())"]);
+    assert_eq!(mods.block_rims().count(), 0);
+    said(&mut mods, "block_rims");
+    let mut next = player();
+    next.player.as_mut().unwrap().dimension = "minecraft:the_nether".into();
+    mods.set_snapshot(next);
+    assert_eq!(mods.block_rims().count(), 0);
+    said(&mut mods, "block_rims panic");
+    assert_eq!(mods.block_rims().count(), 0);
+}
+
+#[test]
 fn emissive_and_post_controls_validate_and_cleanup_without_renderer() {
     fn said(mods: &mut Mods, command: &str) -> Vec<String> {
         assert!(mods.command(command));

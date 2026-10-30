@@ -81,7 +81,7 @@ use render_bindings::horizon::mods::input;
 pub use render_bindings::horizon::mods::input::{Event as InputEvent, HeldItem, ItemUse};
 /// What capability `render` asks the game to draw (WIT `interface render`).
 pub use render_bindings::horizon::mods::render::{
-    AmbientParticle, Atmosphere as ModAtmosphere, ColoredLight, ConfiguredParticle,
+    AmbientParticle, Atmosphere as ModAtmosphere, BlockRim, ColoredLight, ConfiguredParticle,
     Corner as RenderCorner, EmissiveMaterial, FarTerrain as ModFarTerrain, FillShape, FrameRate,
     ItemShape, Minimap as ModMinimap, Point as RenderPoint, PostEffect, QuadShape,
     Rect as RenderRect, Shape, SpriteParticle, SpriteShape, TextShape, WorldParticle,
@@ -458,6 +458,7 @@ struct State {
     far_terrain: Option<ModFarTerrain>,
     atmosphere: Option<(String, ModAtmosphere)>,
     colored_lights: Vec<ColoredLight>,
+    block_rims: Vec<BlockRim>,
     sprite_namespaces: Vec<String>,
     emissive_materials: Vec<EmissiveMaterial>,
     emissive_suffixes: bool,
@@ -673,6 +674,7 @@ impl Mods {
             far_terrain: None,
             atmosphere: None,
             colored_lights: Vec::new(),
+            block_rims: Vec::new(),
             emissive_materials: Vec::new(),
             emissive_suffixes: false,
             post_effects: Vec::new(),
@@ -781,6 +783,7 @@ impl Mods {
                     state.world_events.clear();
                     state.atmosphere = None;
                     state.colored_lights.clear();
+                    state.block_rims.clear();
                     state.emissive_materials.clear();
                     state.emissive_suffixes = false;
                     state.post_effects.clear();
@@ -1070,6 +1073,12 @@ impl Mods {
             .iter()
             .filter_map(|e| e.run.as_ref())
             .flat_map(|r| &r.store.data().colored_lights)
+    }
+    pub fn block_rims(&self) -> impl Iterator<Item = &BlockRim> {
+        self.entries
+            .iter()
+            .filter_map(|e| e.run.as_ref())
+            .flat_map(|r| &r.store.data().block_rims)
     }
     pub fn emissive_materials(&self) -> impl Iterator<Item = &EmissiveMaterial> {
         self.entries
@@ -2236,6 +2245,27 @@ impl render::Host for State {
             return Err("invalid light count, position, color, radius or intensity".into());
         }
         self.colored_lights = lights;
+        Ok(())
+    }
+    fn set_block_rims(&mut self, rims: Vec<BlockRim>) -> Result<(), String> {
+        if rims.is_empty() {
+            self.block_rims.clear();
+            return Ok(());
+        }
+        let player = self.snapshot.player.as_ref().ok_or("no world is open")?;
+        if rims.len() > 8
+            || rims.iter().any(|r| {
+                let dx = f64::from(r.x) + 0.5 - player.x;
+                let dy = f64::from(r.y) + 0.5 - player.y;
+                let dz = f64::from(r.z) + 0.5 - player.z;
+                dx * dx + dy * dy + dz * dz > 1024.0
+                    || !r.width.is_finite()
+                    || !(0.5..=4.0).contains(&r.width)
+            })
+        {
+            return Err("invalid rim count, position or width".into());
+        }
+        self.block_rims = rims;
         Ok(())
     }
     fn emit_configured_particles(&mut self, particles: Vec<ConfiguredParticle>) -> u32 {

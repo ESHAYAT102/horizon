@@ -1099,6 +1099,7 @@ impl Game<'_> {
             status["mod_visuals"] = json!({
                 "particles": self.particles.mod_particle_count(),
                 "colored_lights": self.mods.mods.colored_lights().count(),
+                "block_rims": self.mods.mods.block_rims().count(),
                 "emissive_suffixes": self.mods.mods.emissive_suffixes(),
                 "emissive_mappings": self.mod_emissive_materials().len(),
                 "post_effects": self.mods.mods.post_effects().count(),

@@ -109,6 +109,7 @@ impl Mod for Guest {
             "particles",
             "configured_particles",
             "colored_lights",
+            "block_rims",
             "post_effects",
             "emissive",
             "sample_block",
@@ -621,6 +622,33 @@ impl Mod for Guest {
                 ));
                 if args == "panic" {
                     panic!("after colored lights");
+                }
+            }
+            "block_rims" => {
+                if args == "clear" {
+                    chat::show(&format!("{:?}", render::set_block_rims(&[])));
+                    return Ok(None);
+                }
+                let p = game::get_player();
+                let mut rim = render::BlockRim {
+                    x: p.as_ref().map_or(0, |p| p.x.floor() as i32),
+                    y: p.as_ref().map_or(0, |p| p.y.floor() as i32),
+                    z: p.as_ref().map_or(0, |p| p.z.floor() as i32),
+                    color: 0xffffaa44,
+                    width: 1.5,
+                };
+                match args {
+                    "far" => rim.x += 33,
+                    "nan" => rim.width = f32::NAN,
+                    "wide" => rim.width = 5.0,
+                    _ => {}
+                }
+                chat::show(&format!(
+                    "{:?}",
+                    render::set_block_rims(&vec![rim; if args == "many" { 9 } else { 1 }])
+                ));
+                if args == "panic" {
+                    panic!("after block rims");
                 }
             }
             "configured_particles" => {

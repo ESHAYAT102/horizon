@@ -44,7 +44,7 @@ never declared.
 
 The subsequent visual APIs are level 15 `render.set-colored-lights`, level 16
 `render.emit-sprite-particles`, level 17 `render.set-emissive-materials`, and
-level 18 `render.set-post-effects`; see [Visual effects](visual-effects.md) for
+level 18 `render.set-post-effects`, and level 19 `render.set-block-rims`; see [Visual effects](visual-effects.md) for
 their bounded contracts and renderer compatibility.
 
 The level is enforced in two places:

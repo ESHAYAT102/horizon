@@ -11860,6 +11860,7 @@ impl Game<'_> {
             lines.extend(g.lines);
             on_top = g.on_top;
         }
+        lines.extend(self.mod_block_rims());
         let view = horizon_client::camera::view_matrix(view_yaw, view_pitch);
         let at = camera.to_array();
         // GameRenderer.render3dHud: the debug crosshair, first person with the HUD shown.

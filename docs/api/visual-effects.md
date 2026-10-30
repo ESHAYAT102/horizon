@@ -25,6 +25,7 @@ texture interface.
 | `emit-particles` | 8 | Vanilla particle behaviour, local only |
 | `emit-configured-particles` | 14 | Vanilla sprite sets with explicit color, alpha, half-size, lifetime, gravity, drag, collision and brightness |
 | `set-colored-lights` | 15 | Eight sources per owner; nearest sixteen loaded sources rendered globally |
+| `set-block-rims` | 19 | Eight block positions per owner; depth-tested outline shapes, at most 256 edges globally |
 | `emit-sprite-particles` | 16 | Configured physics with a static image in the caller's content namespace |
 | `set-emissive-materials` | 17 | Explicit owned overlays and opt-in resource-pack suffix conventions |
 | `set-post-effects` | 18 | Bounded built-in bloom and depth-aware radial light filters |
@@ -45,6 +46,13 @@ Colored lighting is additive, camera-local and unshadowed with linear radius
 falloff. Radius is 0.25..16 blocks, intensity 0..1, RGB 0xRRGGBB. Positions must
 be finite and within 32 blocks when set. It affects normal terrain and lit
 entity rendering, not the world's gameplay light values.
+
+Block rims use the client's existing world-space outline edges, including
+non-cube shapes and random block offsets. Requests must be within 32 blocks
+of the player; only loaded blocks with outline edges draw. Width is 0.5..4
+screen pixels, color is ARGB. Rims depth-test against terrain and never change
+block selection, collisions or gameplay lighting. This traces geometry edges;
+it is not a fragment-shader silhouette or a guarantee of parity with any mod.
 
 Emissive mappings address base texture ids and owned `emissive/` overlays.
 There are at most 32 explicit entries per owner and 128 resolved mappings

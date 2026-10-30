@@ -540,6 +540,16 @@ Explicit physics with a vanilla sprite set, not that type's behaviour. Custom im
 | `radius` | `f32` | Radius in blocks, 0.25..16; linear falloff to zero at the edge. |
 | `intensity` | `f32` | 0..1. Adds local visual illumination; never changes gameplay light. |
 
+### record `block-rim`
+
+| Field | Type | |
+| --- | --- | --- |
+| `x` | `s32` |  |
+| `y` | `s32` |  |
+| `z` | `s32` |  |
+| `color` | `u32` | ARGB tint, 0xAARRGGBB. |
+| `width` | `f32` | Stroke width in screen pixels, 0.5..4. |
+
 ### record `sprite-particle`
 
 | Field | Type | |
@@ -630,6 +640,7 @@ Explicit physics with a vanilla sprite set, not that type's behaviour. Custom im
 | `emit-particles` | `func(particles: list<world-particle>) -> u32` | Queues at most 32 particles per mod per game tick, shared by all hooks. Returns the accepted count. Only the first 32 entries are examined. Non-finite values, velocity components outside -1..1, positions beyond 32 blocks from the player, and calls without a player are ignored. The client drops requests outside loaded chunks and draws at most 256 mod particles per tick across all mods. No server packets are sent. Disabling or crashing a mod discards its queued requests; particles already spawned expire normally. Requires Mod API level 8. |
 | `emit-configured-particles` | `func(particles: list<configured-particle>) -> u32` | Shares emit-particles' per-mod and global request quotas, distance and loaded-chunk limits. Invalid records are ignored. Returns the queued count, not a guarantee of display: player settings and live caps apply. At most 256 live configured particles per owner and 1024 across mods. Disabling, reloading or crashing removes these particles immediately; dimension changes clear them too. Does not emit light into the world. Requires Mod API level 14 and capability render. |
 | `set-colored-lights` | `func(lights: list<colored-light>) -> result<_, string>` | Replaces this owner's lights (up to 8). Requires a player, positions within 32 blocks, finite values and valid bounds; invalid lists leave the previous list unchanged. Empty clears. Renderer selects at most 16 nearest sources globally in loaded chunks. Lights do not cast shadows or modify world light propagation. Terrain and entities use the normal renderer only; material-replacing shader packs may override the result. Cleared on owner stop/reload and world/dimension changes. API level 15. |
+| `set-block-rims` | `func(rims: list<block-rim>) -> result<_, string>` | Replaces this owner's depth-tested block outline shapes (up to 8). Positions must be within 32 blocks of the player. Only loaded blocks with an outline shape are drawn, up to 256 edges across all mods. Invalid lists leave the previous request unchanged; empty clears. Cleared on stop, reload and world/dimension change. API level 19. |
 | `emit-sprite-particles` | `func(particles: list<sprite-particle>) -> u32` | Configured physics with a static packaged sprite instead of the kind's vanilla sprite set. Only this mod's content namespaces may be used. Shares all particle quotas. Missing or oversized images are not drawn. Atlas admits at most 64 custom particle images per namespace, 256 total, each at most 64x64. Assets follow the content reload/restart lifecycle; live particles follow their owner's lifecycle. API level 16. |
 | `set-emissive-materials` | `func(materials: list<emissive-material>, pack-suffixes: bool) -> result<_, string>` | Replaces up to 32 block-texture overlays owned by this mod. Base is a texture id; overlay must be in an owned namespace under emissive/. Optional pack suffix mode recognizes _e, _emissive and a safe optifine/emissive.properties suffix.emissive value. Global maximum 128 resolved mappings, explicit entries first, first owner wins. Overlays are full-bright but fogged, do not cast light, and affect normal terrain rendering only (not items/entities or replacing material shader packs). Invalid lists preserve prior state; empty/false clears. Assets use the content reload lifecycle; disabling owners removes mappings. API 17. |
 | `set-post-effects` | `func(effects: list<post-effect>) -> result<_, string>` | Replaces up to 2 owned effects; empty clears. Strength and threshold are 0..1, bloom radius 0.5..8 target pixels, godray light coordinates 0..1 in the viewport. Finite values and RGB colors only. First 4 effects globally in stable mod/list order. Bounded built-in filters read world color/depth and compose additive contributions before hand/HUD. Not arbitrary WGSL or general shader chaining. Paused while a shader pack owns post-processing; never on the title screen. Cleared on stop/reload and world/dimension changes. API level 18. |

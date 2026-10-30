@@ -499,6 +499,21 @@ interface render {
     /// renderer only; material-replacing shader packs may override the result.
     /// Cleared on owner stop/reload and world/dimension changes. API level 15.
     set-colored-lights: func(lights: list<colored-light>) -> result<_, string>;
+    record block-rim {
+        x: s32,
+        y: s32,
+        z: s32,
+        /// ARGB tint, 0xAARRGGBB.
+        color: u32,
+        /// Stroke width in screen pixels, 0.5..4.
+        width: f32,
+    }
+    /// Replaces this owner's depth-tested block outline shapes (up to 8).
+    /// Positions must be within 32 blocks of the player. Only loaded blocks
+    /// with an outline shape are drawn, up to 256 edges across all mods.
+    /// Invalid lists leave the previous request unchanged; empty clears.
+    /// Cleared on stop, reload and world/dimension change. API level 19.
+    set-block-rims: func(rims: list<block-rim>) -> result<_, string>;
     record sprite-particle {
         particle: configured-particle,
         /// Owned namespace:particle/path, from assets/<namespace>/textures/

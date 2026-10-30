@@ -319,6 +319,9 @@ impl Game<'_> {
     ) -> Vec<horizon_client::dynamic_light::Colored> {
         Vec::new()
     }
+    pub(super) fn mod_block_rims(&self) -> Vec<horizon_client::gizmos::Line> {
+        Vec::new()
+    }
     pub(super) fn tick_mods(&mut self) {}
     pub(super) fn mods_frame(&mut self, _elapsed: Duration) {}
     pub(super) fn mod_command(&mut self, _command: &str) -> bool {
@@ -539,6 +542,71 @@ impl Game<'_> {
             })
             .map(|l| ([l.x, l.y, l.z], l.color, l.radius, l.intensity));
         horizon_client::dynamic_light::select_colored(sources, camera)
+    }
+    pub(super) fn mod_block_rims(&self) -> Vec<horizon_client::gizmos::Line> {
+        if self.title.is_some() {
+            return Vec::new();
+        }
+        let mut lines = Vec::new();
+        for rim in self.mods.mods.block_rims() {
+            if lines.len() >= 256 {
+                break;
+            }
+            let pos = [rim.x, rim.y, rim.z];
+            if !self
+                .world
+                .chunks
+                .contains_key(&(rim.x.div_euclid(16), rim.z.div_euclid(16)))
+            {
+                continue;
+            }
+            let state = self.world.block(rim.x, rim.y, rim.z);
+            let f = self.res.facts().get(state);
+            let origin = pos.map(f64::from);
+            if let Some(b) = self.context_outline(pos, state) {
+                for edge in horizon_client::blocks::cube_edges() {
+                    if lines.len() >= 256 {
+                        break;
+                    }
+                    let points: [[f64; 3]; 2] = std::array::from_fn(|end| {
+                        std::array::from_fn(|axis| {
+                            origin[axis] + b[axis] + edge[axis + end * 3] * (b[axis + 3] - b[axis])
+                        })
+                    });
+                    lines.push(horizon_client::gizmos::Line {
+                        start: points[0],
+                        end: points[1],
+                        color: rim.color,
+                        width: rim.width,
+                    });
+                }
+                continue;
+            }
+            let offset = if f.outline_offset {
+                self.pack
+                    .context
+                    .tables
+                    .offset(state, rim.x, rim.z)
+                    .unwrap_or([0.0; 3])
+            } else {
+                [0.0; 3]
+            };
+            for edge in f.outline_edges.iter() {
+                if lines.len() >= 256 {
+                    break;
+                }
+                let points: [[f64; 3]; 2] = std::array::from_fn(|end| {
+                    std::array::from_fn(|axis| origin[axis] + offset[axis] + edge[axis + end * 3])
+                });
+                lines.push(horizon_client::gizmos::Line {
+                    start: points[0],
+                    end: points[1],
+                    color: rim.color,
+                    width: rim.width,
+                });
+            }
+        }
+        lines
     }
     /// What mods read this tick (or frame, for mods with a `frame` hook): the
     /// server's players as they were at the last tick's end.
